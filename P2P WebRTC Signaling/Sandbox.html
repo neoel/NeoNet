@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRTC Sandbox</title>
+</head>
+<style>
+    body{
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+    }
+</style>
+<body>
+    <h1>WebRTC Chat Sandbox</h1>
+
+    <input type="text" id="chattext" disabled>
+    <button id="sendButton" disabled>Send</button>
+
+    <span id="chatbox" style="height: 500px; width: 500px; border: 2px solid black; margin-top: 20px;">
+
+    </span>
+
+    <h2>Create Offer to Friend</h2>
+    <button id="offer">Call Offer</button>
+   
+
+    <h2>Answer Offer to Friend</h2>
+    <button id="answer">Answer Offer</button>
+  
+
+
+    <h2>Connect</h2>
+    <button id="connectButton">Connect</button>
+</body>
+
+
+<script src="http://localhost:8000/socket.io/socket.io.js"></script>
+<script src="sandbox.js"></script>
+</html>

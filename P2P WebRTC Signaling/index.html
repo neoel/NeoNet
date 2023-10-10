@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebRTC Lab</title>
+  <style>
+  </style>
+</head>
+
+<body>
+
+
+
+  <div>
+    <h1>Your camera</h1>
+    <video autoplay playsinline id="localWebcam"></video>
+  </div>
+
+  <div>
+    <h1>Your screen</h1>
+    <video autoplay playsinline id="localScreen"></video>
+  </div>
+
+
+
+  <div>
+    <h1>Friend camera</h1>
+    <video autoplay playsinline id="remoteWebcam"></video>
+  </div>
+
+  <div>
+    <h1>Friend screen</h1>
+    <video autoplay playsinline id="remoteScreen"></video>
+  </div>
+
+  <h2>Start Webcam or Screen Sharing (or both)</h2>
+  <button id="webcamButton">Webcam</button>
+  <button id="screenButton">Screen</button>
+
+  <h2>Create Offer to Friend</h2>
+  <button id="offer">Call Offer</button>
+  <input type="text" id="offerLink">
+  <input type="text" id="offerLink2">
+
+  <h2>Answer Offer to Friend</h2>
+  <button id="answer">Answer Offer</button>
+  <input type="text" id="answerLink">
+  <input type="text" id="answerLink2">
+
+  <h2>Connect</h2>
+  <button id="connectButton">Connect</button>
+  <input type="text" id="connect">
+  <input type="text" id="connect2">
+
+</body>
+<script src="./index.js"></script>
+
+</html>
