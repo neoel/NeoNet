@@ -1,12 +1,14 @@
-var socket = io.connect(':8000');
+var socket = io.connect('localhost:8000');
 
 
-const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, {
+const configuration = {"iceServers": [{"urls": "stun:stun.l.google.com:19302"},  {
     urls: 'turn:openrelay.metered.ca:80',
     username: 'openrelayproject',
     credential: 'openrelayproject'
-}] }
-    const peerConnection = new RTCPeerConnection(configuration);
+}]};
+
+var peerConnection;
+    
     
     const messageBox = document.querySelector('#chattext');
     const sendButton = document.querySelector('#sendButton');
@@ -22,24 +24,29 @@ const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, {
 
     
     socket.on("offer", async (msg) => {
-        console.log(msg)
     if (msg.to == socket.id){
+        peerConnection = new RTCPeerConnection(configuration);
         const dataChannel = peerConnection.createDataChannel("chat");
     var ice;
     peerConnection.addEventListener('datachannel', event => {
         const dataChannel = event.channel;
         console.log(dataChannel)
     });
-        peerConnection.onicecandidate = async (event) => {
-            if (event.candidate) {
-                ice = event.candidate;
-                socket.emit("send-offer", {"from": socket.id, "sdp": peerConnection.localDescription, "ice": ice})
-            }
-        };
+        
 
         const offer = await peerConnection.createOffer();
         await peerConnection.setLocalDescription(offer);
+        
         console.log(offer);
+        socket.emit("send-offer", {"from": socket.id, "to": msg.from ,"sdp": offer})
+
+        peerConnection.onicecandidate = async (event) => {
+            if (event.candidate) {
+                ice = event.candidate;
+                console.log(ice)
+                socket.emit("send-ice", {"from": socket.id,"ice": ice})
+            }
+        };
 
         
 
@@ -74,7 +81,8 @@ const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, {
     });
 
     socket.on("get-offer", async (msg) => {
-       if (msg.from != socket.id){
+       if (msg.to == socket.id) {
+        peerConnection = new RTCPeerConnection(configuration);
         peerConnection.addEventListener('datachannel', event => {
             const dataChannel = event.channel;
             console.log(dataChannel)
@@ -105,22 +113,31 @@ const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, {
             });
         });
 
-        await peerConnection.setRemoteDescription(msg.sdp)
+        
         var ice;
-        await peerConnection.addIceCandidate(msg.ice);
-
-        peerConnection.onicecandidate = (event) => {
-            // console.log('onicecandidate', event)
-            if (event.candidate) {
-                ice = event.candidate;
-            }
-        }
-
+       await peerConnection.setRemoteDescription(msg.sdp)
+        
+        
         const answer = await peerConnection.createAnswer()
         await peerConnection.setLocalDescription(answer)
+
+        peerConnection.onicecandidate = async (event) => {
+            if (event.candidate) {
+                ice = event.candidate;
+                console.log(ice)
+                socket.emit("send-ice", {"from": socket.id,"ice": ice})
+            }
+        };
+        
+        socket.emit("send-answer", {"from": socket.id, "to": msg.from ,"sdp": answer})
+       
+
+        
         console.log(answer);
-        socket.emit("send-answer", {"from": socket.id,"to": msg.from ,"sdp": answer, "ice": ice})
-       }
+        
+      
+    
+    }
      
         
         
@@ -137,15 +154,27 @@ const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, {
             });
     
             await peerConnection.setRemoteDescription(msg.sdp);
-            await peerConnection.addIceCandidate(msg.ice);
+            
         }
         
 
     });
 
+    
+
+    socket.on("get-ice", async (msg) => {
+        if (msg.from != socket.id){
+            await peerConnection.addIceCandidate(msg.ice);
+        }
+        
+    });
+
+    
+
     onbeforeunload = (event) => {
         socket.emit("member-left");
     };
+
     
 
     

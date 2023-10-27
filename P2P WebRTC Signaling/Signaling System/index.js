@@ -30,7 +30,11 @@ io.on("connection", (socket) => {
         console.log("Do not start exchange!")
       }
       else if (users.length >= 2 && users.length <= 5){
-        io.to("room-1").emit("offer", {"to": users[0]})
+        for (let index = 0; index < users.length - 1; index++) {
+          io.to("room-1").emit("offer", {"from": socket.id, "to": users[index]})
+          
+        }
+        
       }
       console.log("Users in room: " + users.length)
       });
@@ -42,9 +46,8 @@ io.on("connection", (socket) => {
         console.log('ICE: ' + msg.ice);
         io.to("room-1").emit("get-offer", {
         "from" : msg.from,
-        "to": "all",
-        "sdp": msg.sdp,
-        "ice": msg.ice
+        "to": msg.to,
+        "sdp": msg.sdp
         })
       });
 
@@ -55,16 +58,34 @@ io.on("connection", (socket) => {
         io.to("room-1").emit("get-answer", {
         "from" : msg.from,
         "to": msg.to,
-        "sdp": msg.sdp,
+        "sdp": msg.sdp
+        })
+      });
+
+      socket.on('send-ice', (msg) => {
+
+        console.log('SDP: ' + msg.sdp);
+        console.log('ICE: ' + msg.ice);
+        io.to("room-1").emit("get-ice", {
+        "from" : msg.from,
+        "to": msg.to,
         "ice": msg.ice
         })
       });
+    
 
     socket.on('member-left', () => {
         const index = users.indexOf(socket.id);
         
         users.splice(index, 1);
         socket.leave("room-1");
+        console.log("Remaining users: " + users.length)
+      });
+
+      socket.on('disconnect', () => {
+        const index = users.indexOf(socket.id);
+        
+        users.splice(index, 1);
         console.log("Remaining users: " + users.length)
       });
 });
