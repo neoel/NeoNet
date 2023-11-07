@@ -7,7 +7,22 @@ const configuration = {"iceServers": [{"urls": "stun:stun.l.google.com:19302"}, 
     credential: 'openrelayproject'
 }]};
 
-var peerConnection;
+function handleCandidateMessage(candidate, pc) {
+    let candidates = new RTCIceCandidate(candidate);
+    let receivers = pc.getReceivers();
+  
+    receivers.forEach((receiver) => {
+      let parameters = receiver.transport.getParameters();
+  
+      if (parameters.usernameFragment === candidates.usernameFragment) {
+        return;
+      }
+    });
+  
+    pc.addIceCandidate(candidate).catch(reportError);
+  }
+  
+
     
     
     const messageBox = document.querySelector('#chattext');
@@ -25,6 +40,7 @@ var peerConnection;
     
     socket.on("offer", async (msg) => {
     if (msg.to == socket.id){
+        var peerConnection;
         peerConnection = new RTCPeerConnection(configuration);
         const dataChannel = peerConnection.createDataChannel("chat");
     var ice;
@@ -44,7 +60,10 @@ var peerConnection;
             if (event.candidate) {
                 ice = event.candidate;
                 console.log(ice)
-                socket.emit("send-ice", {"from": socket.id,"ice": ice})
+                if(peerConnection.currentRemoteDescription){
+                    socket.emit("send-ice", {"from": socket.id,"ice": ice})
+                }
+                
             }
         };
 
@@ -62,12 +81,18 @@ var peerConnection;
         messageBox.disabled = false;
         sendButton.disabled = false;
     });
+    
 
     sendButton.addEventListener('click', event => {
+        
         const message = messageBox.value;
         dataChannel.send(message);
-        incomingMessages.innerHTML += "You: " + message + '</br>';
         console.log(message)
+        incomingMessages.innerHTML += "You: " + message + '</br>';
+        
+        
+        
+        
     })
 
     dataChannel.addEventListener('message', event => {
@@ -75,13 +100,44 @@ var peerConnection;
         incomingMessages.innerHTML += "Friend: " + message + '</br>';
         console.log(message)
     });
+    
+    socket.on("get-ice", async (msg) => {
+        if (msg.from != socket.id){
+            //await peerConnection.addIceCandidate(msg.ice);
+           handleCandidateMessage(msg.ice, peerConnection)
+        }
+        
+    });
+
+    socket.on("get-answer", async (msg) => {
+        if (msg.to == socket.id){
+            peerConnection.addEventListener('connectionstatechange', event => {
+                if (peerConnection.connectionState === 'connected') {
+                    console.log('Bravo Gji u lidhe!')
+                }
+            });
+    
+            await peerConnection.setRemoteDescription(msg.sdp);
+            
+        }
+        
+
+    });
+
+    onbeforeunload = (event) => {
+        peerConnection.close()
+    };
+
     }
+
+    
     
 
     });
 
     socket.on("get-offer", async (msg) => {
        if (msg.to == socket.id) {
+        var peerConnection;
         peerConnection = new RTCPeerConnection(configuration);
         peerConnection.addEventListener('datachannel', event => {
             const dataChannel = event.channel;
@@ -125,7 +181,9 @@ var peerConnection;
             if (event.candidate) {
                 ice = event.candidate;
                 console.log(ice)
-                socket.emit("send-ice", {"from": socket.id,"ice": ice})
+                if(peerConnection.currentRemoteDescription){
+                    socket.emit("send-ice", {"from": socket.id,"ice": ice})
+                }
             }
         };
         
@@ -135,45 +193,35 @@ var peerConnection;
         
         console.log(answer);
         
-      
+      socket.on("get-ice", async (msg) => {
+        if (msg.from != socket.id){
+            //await peerConnection.addIceCandidate(msg.ice);
+            handleCandidateMessage(msg.ice, peerConnection)
+        }
+        
+    });
+
+    
+    onbeforeunload = (event) => {
+        peerConnection.close()
+    };
     
     }
      
-        
-        
+    
    
 
     });
 
-    socket.on("get-answer", async (msg) => {
-        if (msg.to == socket.id){
-            peerConnection.addEventListener('connectionstatechange', event => {
-                if (peerConnection.connectionState === 'connected') {
-                    console.log('Bravo Gji u lidhe!')
-                }
-            });
     
-            await peerConnection.setRemoteDescription(msg.sdp);
-            
-        }
-        
-
-    });
 
     
 
-    socket.on("get-ice", async (msg) => {
-        if (msg.from != socket.id){
-            await peerConnection.addIceCandidate(msg.ice);
-        }
-        
-    });
+   
 
     
 
-    onbeforeunload = (event) => {
-        socket.emit("member-left");
-    };
+    
 
     
 
