@@ -4,6 +4,7 @@ const { createServer } = require("http");
 const host = 'localhost';
 const port = 8000;
 
+
 const requestListener = function (req, res) { };
 
 const server = createServer(requestListener);
@@ -74,7 +75,7 @@ io.on("connection", (socket) => {
 
   socket.on('disconnect', () => {
     const index = users.indexOf(socket.id);
-
+    io.to("room-1").emit("user-left", {"id": socket.id})
     users.splice(index, 1);
     console.log(users)
     socket.leave("room-1");
