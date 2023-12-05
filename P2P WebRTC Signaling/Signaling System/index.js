@@ -82,5 +82,3 @@ io.on("connection", (socket) => {
     console.log("Remaining users: " + users.length)
   });
 });
-
-io.listen(8000);

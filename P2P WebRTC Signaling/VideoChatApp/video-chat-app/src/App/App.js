@@ -1,138 +1,122 @@
 import './App.css';
-//import { io } from 'socket.io-client';
-//import {handleCandidateMessage, dataChannelListeners} from "./functions.js"
-//import { useRef } from 'react';
+import { io } from 'socket.io-client';
+import {handleCandidateMessage, dataChannelListeners} from "./functions.js"
+import { useRef, useEffect } from 'react';
+import { Peer } from "peerjs";
+const socket = io.connect('localhost:8000');
 function App() {
-/*
-var socket = io.connect('localhost:8000');
+
+
 const connections = new Map();
 const dataChannels = new Map();
-const configuration = {
-    "iceServers": [{ "urls": "stun:stun.l.google.com:19302" }, {
-        urls: 'turn:openrelay.metered.ca:80',
-        username: 'openrelayproject',
-        credential: 'openrelayproject'
-    }]
-};
 
-const messageBox = useRef(null);
-const sendButton = useRef(null);
-const incomingMessages = useRef(null);
-socket.on("connect", () => {
+const messageBox = useRef();
+const sendButton = useRef();
+const incomingMessages = useRef();
+
+useEffect(() => {
+
+function connect(){
     console.log(socket.id);
     socket.emit("member-joined")
-});
-
-
-
-
-socket.on("offer", async (msg) => {
-    if (msg.to === socket.id) {
-        connections.set(msg.from, new RTCPeerConnection(configuration));
-        var peerConnection;
-        peerConnection = connections.get(msg.from)
-        dataChannels.set(msg.from, peerConnection.createDataChannel("chat"))
-        const dataChannel = dataChannels.get(msg.from);
-        var ice;
-        peerConnection.addEventListener('datachannel', event => {
-            const dataChannel = event.channel;
-            console.log(dataChannel)
-        });
-
-
-        const offer = await peerConnection.createOffer();
-        await peerConnection.setLocalDescription(offer);
-
-        console.log(offer);
-        socket.emit("send-offer", { "from": socket.id, "to": msg.from, "sdp": offer })
-
-        peerConnection.onicecandidate = async (event) => {
-            if (event.candidate) {
-                ice = event.candidate;
-                console.log(ice)
-                if (peerConnection.currentRemoteDescription) {
-                    socket.emit("send-ice", { "from": socket.id, "to": msg.from, "ice": ice })
-                }
-            }
-        };
-
-
-dataChannelListeners(dataChannel, incomingMessages, messageBox, sendButton, connections)
 }
-});
 
-socket.on("get-ice", async (msg) => {
-    if (msg.to === socket.id) {
-        var peerConnection = connections.get(msg.from)
-        //await peerConnection.addIceCandidate(msg.ice);
-        handleCandidateMessage(msg.ice, peerConnection)
-    }
-});
-
-socket.on("get-answer", async (msg) => {
-    if (msg.to === socket.id) {
-        var peerConnection = connections.get(msg.from)
-        await peerConnection.setRemoteDescription(msg.sdp);
-        peerConnection.addEventListener('connectionstatechange', event => {
-            if (peerConnection.connectionState === 'connected') {
-                console.log('Bravo Gji u lidhe!')
-            }
+function offer(msg){
+    if (msg.to == socket.id) {
+        connections.set(msg.from, new Peer({
+            host: "0.peerjs.com",
+  port: 443,
+  path: "/",
+  pingInterval: 5000,
+            config: {
+                "iceServers": [{ "urls": "stun:stun.l.google.com:19302" }, {
+                    "urls": 'turn:openrelay.metered.ca:80',
+                    "username": 'openrelayproject',
+                    "credential": 'openrelayproject'
+                }]
+              },
+            debug: 2
+    }));
+        var peer = connections.get(msg.from)
+        peer.on('open', function(id) {
+            socket.emit("send-offer", { "from": socket.id, "to": msg.from, "pid": id})
+          });
+        
+          peer.on('connection', function(peerjsConnection) {
+            peerjsConnection.on('open', function() {
+                // Receive messages
+                peerjsConnection.on('data', function(data) {
+                    console.log('Received', data);
+                });
+                
+                // Send messages
+                peerjsConnection.send('Hello from markers-page!');
+            });
         });
+          
+}
+}
+
+function getOffer(msg){
+    if (msg.to == socket.id) {
+        console.log("Offer Socket:" + msg.from)
+        console.log("Offer ID:" + msg.pid)
+        connections.set(msg.from, new Peer({
+            host: "0.peerjs.com",
+  port: 443,
+  path: "/",
+  pingInterval: 5000,
+            config: {
+                "iceServers": [{ "urls": "stun:stun.l.google.com:19302" }, {
+                        "urls": 'turn:openrelay.metered.ca:80',
+                        "username": 'openrelayproject',
+                        "credential": 'openrelayproject'
+                    }]
+                  },
+                debug: 2
+        }));
+        var peer = connections.get(msg.from)
+        var conn = peer.connect(msg.pid)
+        peer.on('connection', function(conn) { console.log("Connected") });
+        conn.on('open', function() {
+            // Receive messages
+            conn.on('data', function(data) {
+              console.log('Received', data);
+            });
+        
+            // Send messages
+            conn.send('Hello!');
+          });
+    
     }
-});
-
-socket.on("get-offer", async (msg) => {
-    if (msg.to === socket.id) {
-        connections.set(msg.from, new RTCPeerConnection(configuration));
-        var peerConnection;
-        peerConnection = connections.get(msg.from)
-        await peerConnection.setRemoteDescription(msg.sdp)
-        peerConnection.addEventListener('datachannel', event => {
-            const dataChannel = event.channel;
-            console.log(dataChannel)
-
-            sendButton.addEventListener('click', event => {
-                const message = messageBox.value;
-                dataChannel.send(message);
-                console.log(message)
-            })
-
-            dataChannelListeners(dataChannel, incomingMessages, messageBox, sendButton, connections)
-
-        });
-        var ice;
-        const answer = await peerConnection.createAnswer()
-        await peerConnection.setLocalDescription(answer)
-        socket.emit("send-answer", { "from": socket.id, "to": msg.from, "sdp": answer })
-        peerConnection.onicecandidate = async (event) => {
-            if (event.candidate) {
-                ice = event.candidate;
-                console.log(ice)
-                if (peerConnection.currentRemoteDescription) {
-                    socket.emit("send-ice", { "from": socket.id, "to": msg.from, "ice": ice })
-                }
-            }
-        };
-        console.log(answer);
-    }
-});
+}
 
 
-socket.on("user-left", async (msg) => {
-    var peerConnection = connections.get(msg.id);
-    var dataChannel = dataChannels.get(msg.id);
+function userLeft(msg){
     console.log("Closed data channel and peerconnection" + msg.id);
-    dataChannel.close();
-    peerConnection.close();
-});*/
+}
+
+socket.on("connect", connect);
+socket.on("offer", offer);
+socket.on("get-offer", getOffer);
+socket.on("user-left", userLeft);
+
+return () => {
+socket.off("connect", connect);
+socket.off("offer", offer);
+socket.off("get-offer", getOffer);
+socket.off("user-left", userLeft);
+}
+
+}, []);
   return (
     <>
     <h1>WebRTC Chat Sandbox</h1>
 
-    <input type="text" id="chattext" disabled></input>
-    <button id="sendButton" disabled>Send</button>
+    <input type="text" id="chattext" disabled ref={messageBox}></input>
+    <button id="sendButton" disabled ref={sendButton}>Send</button>
     
-    <textarea id="chatbox">
+    <textarea id="chatbox" ref={incomingMessages}>
     
     </textarea>
     </>

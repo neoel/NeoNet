@@ -20,6 +20,7 @@
   },
   "homepage": "https://github.com/neoel/NeoNet#readme",
   "dependencies": {
+    "peer": "^1.0.1",
     "socket.io": "^4.7.2"
   }
 }
