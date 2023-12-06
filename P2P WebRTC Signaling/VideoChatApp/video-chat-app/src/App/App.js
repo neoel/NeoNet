@@ -1,18 +1,18 @@
 import './App.css';
 import { io } from 'socket.io-client';
-import {handleCandidateMessage, dataChannelListeners} from "./functions.js"
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState} from 'react';
 import { Peer } from "peerjs";
 const socket = io.connect('localhost:8000');
 function App() {
 
 
-const connections = new Map();
-const dataChannels = new Map();
 
-const messageBox = useRef();
-const sendButton = useRef();
-const incomingMessages = useRef();
+const [connections, setConnections] = useState(new Map());
+//const dataChannels = new Map();
+
+const messageBox = useRef(null);
+const sendButton = useRef(null);
+const incomingMessages = useRef(null);
 
 useEffect(() => {
 
@@ -22,74 +22,54 @@ function connect(){
 }
 
 function offer(msg){
-    if (msg.to == socket.id) {
-        connections.set(msg.from, new Peer({
-            host: "0.peerjs.com",
-  port: 443,
-  path: "/",
-  pingInterval: 5000,
-            config: {
-                "iceServers": [{ "urls": "stun:stun.l.google.com:19302" }, {
-                    "urls": 'turn:openrelay.metered.ca:80',
-                    "username": 'openrelayproject',
-                    "credential": 'openrelayproject'
-                }]
-              },
-            debug: 2
-    }));
-        var peer = connections.get(msg.from)
-        peer.on('open', function(id) {
-            socket.emit("send-offer", { "from": socket.id, "to": msg.from, "pid": id})
-          });
-        
-          peer.on('connection', function(peerjsConnection) {
-            peerjsConnection.on('open', function() {
-                // Receive messages
-                peerjsConnection.on('data', function(data) {
-                    console.log('Received', data);
-                });
-                
-                // Send messages
-                peerjsConnection.send('Hello from markers-page!');
-            });
-        });
-          
+    if (msg.to === socket.id) {
+        setConnections(connections.set(msg.from, new Peer({
+            debug: 3
+    })));
+    socket.emit("send-offer", { "from": socket.id, "to": msg.from, "pid": "None"})
 }
 }
 
 function getOffer(msg){
-    if (msg.to == socket.id) {
+    if (msg.to === socket.id) {
         console.log("Offer Socket:" + msg.from)
         console.log("Offer ID:" + msg.pid)
-        connections.set(msg.from, new Peer({
-            host: "0.peerjs.com",
-  port: 443,
-  path: "/",
-  pingInterval: 5000,
-            config: {
-                "iceServers": [{ "urls": "stun:stun.l.google.com:19302" }, {
-                        "urls": 'turn:openrelay.metered.ca:80',
-                        "username": 'openrelayproject',
-                        "credential": 'openrelayproject'
-                    }]
-                  },
-                debug: 2
-        }));
+        setConnections(connections.set(msg.from, new Peer({
+          debug: 3
+  })));
         var peer = connections.get(msg.from)
-        var conn = peer.connect(msg.pid)
-        peer.on('connection', function(conn) { console.log("Connected") });
-        conn.on('open', function() {
-            // Receive messages
-            conn.on('data', function(data) {
-              console.log('Received', data);
-            });
         
-            // Send messages
-            conn.send('Hello!');
+        peer.on('open', function(id) {
+          socket.emit("send-answer", { "from": socket.id, "to": msg.from, "pid": id})
           });
-    
+          peer.on("connection", (conn) => {
+            conn.on("data", (data) => {
+              console.log("Received data", data);
+            });
+
+            conn.on("open", (data) => {
+              conn.send("Mirmrama!")
+            });
+          });
+          
     }
 }
+function getAnswer(msg){
+  if (msg.to === socket.id) {
+    console.log("Offer Socket:" + msg.from)
+    console.log("Offer ID:" + msg.pid)
+    var peer = connections.get(msg.from)
+    const conn = peer.connect(msg.pid);
+conn.on("open", () => {
+  conn.send("Hello World!");
+});
+conn.on("data", (data) => {
+  console.log("Received data", data);
+});
+  }
+}
+
+
 
 
 function userLeft(msg){
@@ -100,15 +80,17 @@ socket.on("connect", connect);
 socket.on("offer", offer);
 socket.on("get-offer", getOffer);
 socket.on("user-left", userLeft);
-
+socket.on("get-answer", getAnswer);
 return () => {
 socket.off("connect", connect);
 socket.off("offer", offer);
 socket.off("get-offer", getOffer);
 socket.off("user-left", userLeft);
+socket.off("get-answer", getAnswer);
 }
 
-}, []);
+}, [connections]);
+console.log(connections)
   return (
     <>
     <h1>WebRTC Chat Sandbox</h1>

@@ -33,8 +33,8 @@ io.on("connection", (socket) => {
     else if (users.length >= 2 && users.length <= 5) {
       for (let index = 0; index < users.length - 1; index++) {
         io.to("room-1").emit("offer", { "from": socket.id, "to": users[index] })
+        
     }
-
     }
     console.log("Users in room: " + users.length)
   });
