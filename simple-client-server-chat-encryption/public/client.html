@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Secure Chat App</title>
+  <!-- Include Forge library for cryptography -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/forge/0.10.0/forge.min.js"></script>
+</head>
+<body>
+  <!-- Container for displaying chat messages -->
+  <div id="messages"></div>
+
+  <!-- Input field for typing messages -->
+  <input type="text" id="messageInput" placeholder="Type your message...">
+
+  <!-- Button to send messages -->
+  <button onclick="sendMessage()">Send</button>
+
+  <!-- Include Socket.IO client library -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    // Create a Socket.IO instance
+    const socket = io();
+
+    // Store own private and public keys
+    let privateKey;
+    let publicKey;
+
+    // Receive own public key from the server
+    socket.on('publicKey', (serverPublicKey) => {
+      publicKey = serverPublicKey;
+      console.log('Received public key:', publicKey);
+    });
+
+    // Receive chat messages from the server
+    socket.on('chatMessage', (message) => {
+      console.log('Received encrypted message:', message);
+      displayMessage(message.user, message.text);
+    });
+
+    // Function to send a message
+    function sendMessage() {
+      const messageInput = document.getElementById('messageInput');
+      const message = messageInput.value;
+
+      // Convert the public key string to a PublicKey object
+      const importedPublicKey = forge.pki.publicKeyFromPem(publicKey);
+
+      // Encrypt message using the public key
+      const encryptedMessage = importedPublicKey.encrypt(message, 'RSA-OAEP', {
+        md: forge.md.sha256.create()
+      });
+
+      // Convert the encrypted message to base64
+      const base64EncryptedMessage = forge.util.encode64(encryptedMessage);
+
+      // Send encrypted message to the server
+      socket.emit('chatMessage', base64EncryptedMessage);
+
+      // Clear input field
+      messageInput.value = '';
+    }
+
+    // Function to display a chat message
+    function displayMessage(user, text) {
+      const messagesDiv = document.getElementById('messages');
+      const messageDiv = document.createElement('div');
+      messageDiv.innerText = `${user}: ${text}`;
+      messagesDiv.appendChild(messageDiv);
+    }
+  </script>
+</body>
+</html>
