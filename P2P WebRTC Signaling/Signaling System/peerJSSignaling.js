@@ -17,55 +17,64 @@ const io = new Server(server, {
     origin: "http://localhost:3000"
   }
 });
-var rooms = []
-var users = []
+
 io.on("connection", (socket) => {
-
-
   socket.on('member-joined', (msg) => {
-    socket.join("room-1");
-    console.log("Client Connected: " + socket.id)
-
-    users.push(socket.id)
-    if (users.length == 1) {
+    if (msg.room == undefined || msg.room == "null"){
+      io.to(socket.id).emit("no-room")
+    }else{
+      socket.join(msg.room);
+    console.log("Client Connected: " + socket.id + ", " + msg.room)
+    var roomClientCount = io.sockets.adapter.rooms.get(msg.room).size
+    console.log(roomClientCount)
+    if (roomClientCount == 1) {
       console.log("Do not start exchange!")
     }
-    else if (users.length >= 2 && users.length <= 5) {
-      for (let index = 0; index < users.length - 1; index++) {
-        io.to("room-1").emit("offer", { "from": socket.id, "to": users[index] })
+    else if (roomClientCount >= 2 && roomClientCount <= 5) {
+      setTimeout(function() {
+        io.to(msg.room).emit("offer", { "from": socket.id})
+      }, 1000);
         
     }
     }
-    console.log("Users in room: " + users.length)
+    
   });
 
 
   socket.on('send-offer', (msg) => {
 
     console.log(msg.pid);
-    io.to("room-1").emit("get-offer", {
+    io.to(msg.room).emit("get-offer", {
       "from": msg.from,
       "to": msg.to,
-      "pid": msg.pid
+      "pid": msg.pid,
+      "publicKey": msg.publicKey
     })
   });
 
   socket.on('send-answer', (msg) => {
 
     console.log(msg.pid);
-    io.to("room-1").emit("get-answer", {
+    io.to(msg.room).emit("get-answer", {
       "from": msg.from,
       "to": msg.to,
-      "pid": msg.pid
+      "pid": msg.pid,
+      "publicKey": msg.publicKey
     })
   });
 
+  socket.on("disconnecting", () => {
+    const roomIterator = socket.rooms.values();
+
+
+for (const entry of roomIterator) {
+ if(entry != socket.id){
+  io.to(entry).emit("user-left", {"id": socket.id})
+ }
+}
+  });
+
   socket.on('disconnect', () => {
-    const index = users.indexOf(socket.id);
-    io.to("room-1").emit("user-left", {"id": socket.id})
-    users.splice(index, 1);
-    console.log(users)
-    socket.leave("room-1");
-    console.log("Remaining users: " + users.length)
+   
   });
 });
