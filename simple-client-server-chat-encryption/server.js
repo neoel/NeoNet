@@ -85,7 +85,7 @@ io.on('connection', (socket) => {
 
 // Set up server to listen on specified port and IP address
 const PORT = process.env.PORT || 3000;
-const IP_ADDRESS = '192.168.0.53';
+const IP_ADDRESS = '192.168.18.7';
 
 server.listen(PORT, IP_ADDRESS, () => {
   console.log(`Server running at http://${IP_ADDRESS}:${PORT}`);
