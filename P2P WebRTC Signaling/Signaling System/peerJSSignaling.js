@@ -1,8 +1,9 @@
 const { Server } = require("socket.io")
 const { createServer } = require("http");
 
-const host = 'localhost';
+const host = '192.168.100.142';
 const port = 8000;
+
 
 
 const requestListener = function (req, res) { };
@@ -14,7 +15,7 @@ server.listen(port, host, () => {
 
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:3000"
+    origin: "http://192.168.100.142:3000"
   }
 });
 
@@ -24,7 +25,7 @@ io.on("connection", (socket) => {
       io.to(socket.id).emit("no-room")
     }else{
       socket.join(msg.room);
-    console.log("Client Connected: " + socket.id + ", " + msg.room)
+      console.log("Client Connected: " + socket.id + ", " + msg.room)
     var roomClientCount = io.sockets.adapter.rooms.get(msg.room).size
     console.log(roomClientCount)
     if (roomClientCount == 1) {
@@ -38,6 +39,7 @@ io.on("connection", (socket) => {
     }
     }
     
+    
   });
 
 
@@ -49,6 +51,7 @@ io.on("connection", (socket) => {
       "to": msg.to,
       "pid": msg.pid,
       "publicKey": msg.publicKey
+      
     })
   });
 
@@ -64,9 +67,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("disconnecting", () => {
-    const roomIterator = socket.rooms.values();
-
-
+  const roomIterator = socket.rooms.values();
 for (const entry of roomIterator) {
  if(entry != socket.id){
   io.to(entry).emit("user-left", {"id": socket.id})

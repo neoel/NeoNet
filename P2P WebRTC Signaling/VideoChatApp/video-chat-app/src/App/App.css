@@ -4,4 +4,26 @@
   width: 500px; 
   border: 2px solid black; 
   margin-top: 20px;
+  overflow: scroll;
+  position: sticky;
+  top: 0;
 }
+
+#controls{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+
+#controls #name{
+  align-self: flex-start;
+  background-color: black;
+  color: white;
+}
+
+#controls > label{
+  align-self: flex-start;
+  color: black;
+}
+
