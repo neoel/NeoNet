@@ -3,7 +3,7 @@ import { io } from 'socket.io-client';
 import { useRef, useEffect, useMemo, useState } from 'react';
 import { Peer } from "peerjs";
 var forge = require("node-forge");
-const socket = io.connect('192.168.100.142:8000');
+const socket = io.connect('localhost:8000');
 
 
 function App() {
@@ -17,10 +17,66 @@ function App() {
   const incomingMessages = useRef(null);
   const userNameInput = useRef(null);
   const localWebcam = useRef(null);
+  const localScreen = useRef(null);
   const videoStreams = useRef(null);
+  const micToggle = useRef(null);
+  const webcamToggle = useRef(null);
+  const screenShare = useRef(null);
   const [uiElementsState, setUIElementsState] = useState(true);
   var localStream = useRef(null);
   var { clientPublicKey, clientPrivateKey } = 0;
+
+  function toggleWebcam(){
+    const videoTrack = localStream.current.getVideoTracks()[0]
+
+    if (videoTrack.enabled === true){
+      videoTrack.enabled = false;
+    }else{
+      videoTrack.enabled = true;
+    }
+  }
+
+  function toggleMicrophone(){
+    const audioTrack = localStream.current.getAudioTracks()[0]
+
+    if (audioTrack.enabled === true){
+      audioTrack.enabled = false;
+    }else{
+      audioTrack.enabled = true;
+    }
+  }
+
+  function startScreenShare(){
+
+    let constraints = {
+      video: {
+        displaySurface: "browser",
+      },
+      audio: {
+        suppressLocalAudioPlayback: false,
+      },
+      preferCurrentTab: false,
+      selfBrowserSurface: "exclude",
+      systemAudio: "exclude",
+      surfaceSwitching: "include",
+      monitorTypeSurfaces: "include",
+    }
+
+    try {
+    
+      new Promise((resolve, reject) => {
+        const stream = navigator.mediaDevices.getDisplayMedia(constraints);
+        resolve(stream)
+      }).then((value) => {
+      localStream.current.addTrack(value.getVideoTracks()[0])
+      localScreen.current.srcObject = value
+      });
+    } catch (err) {
+      console.error(`Error: ${err}`);
+    }
+   
+  }
+
 
 
   const keypair = new Promise((resolve, reject) => {
@@ -82,7 +138,7 @@ keys()
           console.log("User joined:" + msg.from)
           if (msg.from !== socket.id) {
             connections.set(msg.from, new Peer({
-              host: "192.168.100.142",
+              host: "localhost",
               port: "5000",
               path: "/p2p",
               debug: 3
@@ -104,7 +160,7 @@ keys()
             usersPublicKeys.set(msg.from, msg.publicKey)
             
             connections.set(msg.from, new Peer({
-              host: "192.168.100.142",
+              host: "localhost",
               port: "5000",
               path: "/p2p",
               debug: 3
@@ -278,8 +334,15 @@ keys()
 
       </div>
 
-      <div id='videoStreams' ref={videoStreams}>   
-    <video autoPlay={true} playsInline={true} id="localWebcam" ref={localWebcam}></video>
+      <div id='videoStreams' ref={videoStreams}> 
+      <div id="selfStream">
+      <video autoPlay={true} playsInline={true} id="localWebcam" ref={localWebcam}></video>
+      <video  autoPlay={true} playsInline={true} id="localScreen" ref={localScreen}></video>
+      <button id="webcamToggle" ref={webcamToggle} onClick={toggleWebcam}>Webcam Toggle</button>
+      <button id="micToggle" ref={micToggle} onClick={toggleMicrophone}>Microphone Toggle</button>
+      <button id="screenSharing" ref={screenShare} onClick={startScreenShare}>ScreenShare</button>
+      </div>
+    
         {
           videoConnections.map((stream => (
             <div>

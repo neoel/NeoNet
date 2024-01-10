@@ -1,7 +1,7 @@
 const { Server } = require("socket.io")
 const { createServer } = require("http");
 
-const host = '192.168.100.142';
+const host = 'localhost';
 const port = 8000;
 
 
@@ -15,7 +15,7 @@ server.listen(port, host, () => {
 
 const io = new Server(server, {
   cors: {
-    origin: "http://192.168.100.142:3000"
+    origin: "http://localhost:3000"
   }
 });
 
