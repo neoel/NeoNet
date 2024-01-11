@@ -11,6 +11,7 @@ function App() {
   const connections = useMemo(() => new Map(), []);
   const dataConnections = useMemo(() => new Map(), []);
   const [videoConnections, setVideoConnections] = useState([]);
+  const [callStreams, setCallStreams] = useState([]);
   const usersPublicKeys = useMemo(() => new Map(), []);
   const messageBox = useRef(null);
   const sendButton = useRef(null);
@@ -68,8 +69,17 @@ function App() {
         const stream = navigator.mediaDevices.getDisplayMedia(constraints);
         resolve(stream)
       }).then((value) => {
-      localStream.current.addTrack(value.getVideoTracks()[0])
-      localScreen.current.srcObject = value
+        let track = value.getVideoTracks()[0]
+        track.onended = function (){
+          stopScreenShare()
+        }
+       videoConnections.map(call => {
+        let sender = call.connection.peerConnection.getSenders().find(function(tracks) {
+          return tracks.track.kind === track.kind
+        })
+        sender.replaceTrack(track)
+       })
+      
       });
     } catch (err) {
       console.error(`Error: ${err}`);
@@ -77,7 +87,15 @@ function App() {
    
   }
 
-
+ function stopScreenShare(){
+  let track = localStream.current.getVideoTracks()[0]
+  videoConnections.map(call => {
+    let sender = call.connection.peerConnection.getSenders().find(function(tracks) {
+      return tracks.track.kind === track.kind
+    })
+    sender.replaceTrack(track)
+   })
+ }
 
   const keypair = new Promise((resolve, reject) => {
     rsa.generateKeyPair({ bits: 2048, workers: 2 }, function (err, keypair) {
@@ -181,6 +199,11 @@ keys()
               });
     
               peer.on('call', function(call) {
+                
+                setVideoConnections(  [ // with a new array
+                ...videoConnections, // that contains all the old items
+                { id: msg.from, connection: call } // and one new item at the end
+              ])
 
                 call.on('error', function(err) { console.error(err) });
                 
@@ -202,8 +225,8 @@ keys()
                   call.answer(localStream.current);
                   call.on('stream', function(stream) {
                     console.log("Stream from other peer: " + stream)
-                    setVideoConnections(  [ // with a new array
-                ...videoConnections, // that contains all the old items
+                    setCallStreams(  [ // with a new array
+                ...callStreams, // that contains all the old items
                 { id: msg.from, videoStream: stream } // and one new item at the end
               ])
                     });
@@ -265,10 +288,14 @@ keys()
               localWebcam.current.srcObject = localStream.current;
               console.log("Call trigger localStream: " + localStream.current)
               var call = peer.call(msg.pid, localStream.current)
+              setVideoConnections(  [ // with a new array
+                ...videoConnections, // that contains all the old items
+                { id: msg.from, connection: call } // and one new item at the end
+              ])
               call.on('stream', function(stream) {
                 console.log("Stream from other peer: " + stream)
-                setVideoConnections(  [ // with a new array
-                ...videoConnections, // that contains all the old items
+                setCallStreams(  [ // with a new array
+                ...callStreams, // that contains all the old items
                 { id: msg.from, videoStream: stream } // and one new item at the end
               ])
                 });
@@ -297,6 +324,14 @@ keys()
           connections.delete(msg.id)
           dataConnections.delete(msg.id)
           usersPublicKeys.delete(msg.id)
+          //videoConnections.splice(videoConnections.indexOf(msg.id), 1)
+          //callStreams.splice(callStreams.indexOf(msg.id), 1)
+          setVideoConnections(
+            videoConnections.filter(vid => vid.id !== msg.id)
+          );
+          setCallStreams(
+            callStreams.filter(stream => stream.id !== msg.id)
+          );
           checkUsersonRoom()
         }
     
@@ -312,7 +347,7 @@ keys()
           socket.off("user-left", userLeft);
           socket.off("get-answer", getAnswer);
         }
-    }, [connections, dataConnections, clientPrivateKey, clientPublicKey, usersPublicKeys, localStream, videoConnections]);
+    }, [connections, dataConnections, clientPrivateKey, clientPublicKey, usersPublicKeys, localStream, videoConnections, callStreams]);
   
 
   console.log(connections)
@@ -344,7 +379,7 @@ keys()
       </div>
     
         {
-          videoConnections.map((stream => (
+          callStreams.map((stream => (
             <div>
               <video key={stream.id} autoPlay={true} playsInline={true} id={stream.id} ref={(ref) => {
               if (ref) ref.srcObject = stream.videoStream;
