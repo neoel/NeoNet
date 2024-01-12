@@ -1,7 +1,7 @@
 const { Server } = require("socket.io")
 const { createServer } = require("http");
 
-const host = 'localhost';
+const host = '0.0.0.0';
 const port = 8000;
 
 
