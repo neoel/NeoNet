@@ -189,8 +189,14 @@ keys()
               socket.emit("send-answer", { "from": socket.id, "to": msg.from, "pid": id, "publicKey": pemKey, "room": searchParams.get("room") })
               
             });
+
+            peer.on('close', function(){
+
+            })
+
+            
             peer.on("connection", (conn) => {
-              dataConnections.set(msg.from, conn)
+              dataConnections.set(conn.peer, conn)
               conn.on("data", (data) => {
                 console.log("Encrypted Data: " + data)
                 let decrypted = clientPrivateKey.decrypt(data)
@@ -202,10 +208,19 @@ keys()
                 
                 setVideoConnections(  [ // with a new array
                 ...videoConnections, // that contains all the old items
-                { id: msg.from, connection: call } // and one new item at the end
+                { id: call.peer, connection: call } // and one new item at the end
               ])
 
                 call.on('error', function(err) { console.error(err) });
+
+                call.on('close', function(){
+                  setCallStreams(
+                    callStreams.filter(stream => stream.id !== call.peer)
+                  );
+                  setVideoConnections(
+                    videoConnections.filter(vid => vid.id !== msg.id)
+                  );
+                })
                 
                 // Answer the call, providing our mediaStream
                 try {
@@ -227,7 +242,7 @@ keys()
                     console.log("Stream from other peer: " + stream)
                     setCallStreams(  [ // with a new array
                 ...callStreams, // that contains all the old items
-                { id: msg.from, videoStream: stream } // and one new item at the end
+                { id: call.peer, videoStream: stream } // and one new item at the end
               ])
                     });
                   
@@ -255,9 +270,7 @@ keys()
             var peer = connections.get(msg.from)
             const conn = peer.connect(msg.pid);
             
-            
-            dataConnections.set(msg.from, conn);
-    
+            dataConnections.set(conn.peer, conn)
     
             conn.on("data", (data) => {
               console.log("Encrypted Data: " + data)
@@ -271,8 +284,10 @@ keys()
     
             });
 
+            conn.on("close", function(){
+              dataConnections.delete(conn.peer)
+            })
             
-
             try {
               const constraints = {
                   video: true,
@@ -288,15 +303,23 @@ keys()
               localWebcam.current.srcObject = localStream.current;
               console.log("Call trigger localStream: " + localStream.current)
               var call = peer.call(msg.pid, localStream.current)
+              call.on('close', function(){
+                setCallStreams(
+                  callStreams.filter(stream => stream.id !== call.peer)
+                );
+                setVideoConnections(
+                  videoConnections.filter(vid => vid.id !== msg.id)
+                );
+              })
               setVideoConnections(  [ // with a new array
                 ...videoConnections, // that contains all the old items
-                { id: msg.from, connection: call } // and one new item at the end
+                { id: call.peer, connection: call } // and one new item at the end
               ])
               call.on('stream', function(stream) {
                 console.log("Stream from other peer: " + stream)
                 setCallStreams(  [ // with a new array
                 ...callStreams, // that contains all the old items
-                { id: msg.from, videoStream: stream } // and one new item at the end
+                { id: call.peer, videoStream: stream } // and one new item at the end
               ])
                 });
   
@@ -312,7 +335,7 @@ keys()
         }
     
         function checkUsersonRoom() {
-          if (connections.size === 0 && dataConnections.size === 0) {
+          if (dataConnections.size === 0) {
             setUIElementsState(true)
           }
         }
@@ -322,16 +345,7 @@ keys()
         function userLeft(msg) {
           console.log("Closed data channel and peerconnection" + msg.id);
           connections.delete(msg.id)
-          dataConnections.delete(msg.id)
           usersPublicKeys.delete(msg.id)
-          //videoConnections.splice(videoConnections.indexOf(msg.id), 1)
-          //callStreams.splice(callStreams.indexOf(msg.id), 1)
-          setVideoConnections(
-            videoConnections.filter(vid => vid.id !== msg.id)
-          );
-          setCallStreams(
-            callStreams.filter(stream => stream.id !== msg.id)
-          );
           checkUsersonRoom()
         }
     

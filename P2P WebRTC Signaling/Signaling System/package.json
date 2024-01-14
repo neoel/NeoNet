@@ -20,6 +20,7 @@
   },
   "homepage": "https://github.com/neoel/NeoNet#readme",
   "dependencies": {
+    "mysql2": "^3.7.0",
     "peer": "^1.0.1",
     "socket.io": "^4.7.2"
   }
