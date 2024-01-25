@@ -1,0 +1,16 @@
+version: '3'
+
+services:
+  peerjs:
+    build:
+      context: .
+      dockerfile: "./Docker/PeerJS/Dockerfile"
+    ports:
+      - "5000:5000"
+    
+  signalingserver:
+    build:
+      context: .
+      dockerfile: "./Docker/Signaling Server/Dockerfile"
+    ports:
+      - "8000:8000"
