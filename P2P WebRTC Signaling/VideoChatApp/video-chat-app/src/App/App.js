@@ -175,7 +175,7 @@ keys()
             console.log("Offer Socket:" + msg.from)
             console.log("Offer ID:" + msg.pid)
             console.log("Public Key: " + msg.publicKey)
-            usersPublicKeys.set(msg.from, msg.publicKey)
+            
             
             connections.set(msg.from, new Peer({
               host: "localhost",
@@ -187,7 +187,7 @@ keys()
             let pemKey = forge.pki.publicKeyToPem(clientPublicKey)
             peer.on('open', function (id) {
               socket.emit("send-answer", { "from": socket.id, "to": msg.from, "pid": id, "publicKey": pemKey, "room": searchParams.get("room") })
-              
+              usersPublicKeys.set(id, msg.publicKey)
             });
 
             peer.on('close', function(){
@@ -266,7 +266,7 @@ keys()
             console.log("Offer Socket:" + msg.from)
             console.log("Offer ID:" + msg.pid)
             console.log("Public Key: " + msg.publicKey)
-            usersPublicKeys.set(msg.from, msg.publicKey)
+            usersPublicKeys.set(msg.pid, msg.publicKey)
             var peer = connections.get(msg.from)
             const conn = peer.connect(msg.pid);
             
@@ -367,6 +367,7 @@ keys()
   console.log(connections)
   console.log(dataConnections)
   console.log(videoConnections)
+  console.log(usersPublicKeys)
   return (
     <>
       <h1>WebRTC Chat Sandbox</h1>
