@@ -3,7 +3,7 @@ import { io } from 'socket.io-client';
 import { useRef, useEffect, useMemo, useState } from 'react';
 import { Peer } from "peerjs";
 var forge = require("node-forge");
-const socket = io.connect('localhost:8000');
+const socket = io.connect('146.0.17.99:8000');
 
 
 function App() {
@@ -156,15 +156,19 @@ keys()
           console.log("User joined:" + msg.from)
           if (msg.from !== socket.id) {
             connections.set(msg.from, new Peer({
-              host: "localhost",
+              host: "146.0.17.99",
               port: "5000",
               path: "/p2p",
               debug: 3
             }));
+            let peer = connections.get(msg.from)
             let pemKey = forge.pki.publicKeyToPem(clientPublicKey)
             
-    
-            socket.emit("send-offer", { "from": socket.id, "to": msg.from, "pid": "None", "publicKey": pemKey, "room": searchParams.get("room") })
+            peer.on('open', function (id) {
+              socket.emit("send-offer", { "from": socket.id, "to": msg.from, "pid": id, "publicKey": pemKey, "room": searchParams.get("room") })
+              
+            });
+            
           }
         }
     
@@ -175,10 +179,10 @@ keys()
             console.log("Offer Socket:" + msg.from)
             console.log("Offer ID:" + msg.pid)
             console.log("Public Key: " + msg.publicKey)
-            
+            usersPublicKeys.set(msg.pid, msg.publicKey)
             
             connections.set(msg.from, new Peer({
-              host: "localhost",
+              host: "146.0.17.99",
               port: "5000",
               path: "/p2p",
               debug: 3
@@ -187,7 +191,7 @@ keys()
             let pemKey = forge.pki.publicKeyToPem(clientPublicKey)
             peer.on('open', function (id) {
               socket.emit("send-answer", { "from": socket.id, "to": msg.from, "pid": id, "publicKey": pemKey, "room": searchParams.get("room") })
-              usersPublicKeys.set(id, msg.publicKey)
+              
             });
 
             peer.on('close', function(){
