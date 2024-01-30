@@ -3,7 +3,9 @@ import { io } from 'socket.io-client';
 import { useRef, useEffect, useMemo, useState } from 'react';
 import { Peer } from "peerjs";
 var forge = require("node-forge");
-const socket = io.connect('146.0.17.99:8000');
+const socket = io.connect("https://neonet.dev", {
+  path: "/signaling/"
+});
 
 
 function App() {
@@ -24,8 +26,13 @@ function App() {
   const webcamToggle = useRef(null);
   const screenShare = useRef(null);
   const [uiElementsState, setUIElementsState] = useState(true);
+  const [logs, setLogs] = useState([]); // State for logs
   var localStream = useRef(null);
   var { clientPublicKey, clientPrivateKey } = 0;
+
+  const addLog = (message) => {
+    setLogs((prevLogs) => [...prevLogs, message]);
+  };
 
   function toggleWebcam(){
     const videoTrack = localStream.current.getVideoTracks()[0]
@@ -159,7 +166,11 @@ keys()
               host: "146.0.17.99",
               port: "5000",
               path: "/p2p",
-              debug: 3
+              debug: 3,
+              config: {'iceServers': [
+                { urls: 'stun:neonet.dev:3479' },
+                { urls: 'turn:neonet.dev:3479', credential: 'neonetproject', username: 'neonet'}
+              ]}
             }));
             let peer = connections.get(msg.from)
             let pemKey = forge.pki.publicKeyToPem(clientPublicKey)
@@ -185,7 +196,11 @@ keys()
               host: "146.0.17.99",
               port: "5000",
               path: "/p2p",
-              debug: 3
+              debug: 3,
+              config: {'iceServers': [
+                { urls: 'stun:neonet.dev:3479' },
+                { urls: 'turn:neonet.dev:3479', credential: 'neonetproject', username: 'neonet'}
+              ]}
             }));
             var peer = connections.get(msg.from)
             let pemKey = forge.pki.publicKeyToPem(clientPublicKey)
@@ -339,8 +354,9 @@ keys()
         }
     
         function checkUsersonRoom() {
-          if (dataConnections.size === 0) {
-            setUIElementsState(true)
+          if (connections.size === 0 && dataConnections.size === 0) {
+            setUIElementsState(true);
+            addLog('All users left the room.');
           }
         }
     
@@ -350,6 +366,7 @@ keys()
           console.log("Closed data channel and peerconnection" + msg.id);
           connections.delete(msg.id)
           usersPublicKeys.delete(msg.id)
+          addLog("User " + msg.id +  " left the room.");
           checkUsersonRoom()
         }
     
@@ -386,6 +403,13 @@ keys()
 
       <div id="chatbox" ref={incomingMessages}>
 
+      </div>
+
+
+      <div id="logbox" style={{ height: '200px', border: '2px solid black', marginTop: '20px', overflowY: 'auto' }}>
+        {logs.map((log, index) => (
+          <div key={index}>{log}</div>
+        ))}
       </div>
 
       <div id='videoStreams' ref={videoStreams}> 
