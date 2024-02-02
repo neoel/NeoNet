@@ -1,29 +1,112 @@
-
-#chatbox{
-  height: 500px; 
-  width: 500px; 
-  border: 2px solid black; 
-  margin-top: 20px;
-  overflow: scroll;
-  position: sticky;
-  top: 0;
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
 }
 
-#controls{
+h1 {
+  text-align: center;
+  color: #333;
+}
+
+#controls {
   display: flex;
-  justify-content: center;
   align-items: center;
-  flex-direction: column;
+  justify-content: space-around;
+  margin: 20px 0;
 }
 
-#controls #name{
-  align-self: flex-start;
-  background-color: black;
+label {
+  margin-right: 10px;
+}
+
+input[type="text"] {
+  padding: 5px;
+  margin-right: 10px;
+  border: 1px solid #ccc;
+}
+
+button {
+  padding: 8px 12px;
+  background-color: #4CAF50;
   color: white;
+  border: none;
+  cursor: pointer;
 }
 
-#controls > label{
-  align-self: flex-start;
-  color: black;
+button:disabled {
+  background-color: #aaa;
+  cursor: not-allowed;
+}
+
+#chatbox {
+  border: 1px solid #ccc;
+  padding: 10px;
+  height: 200px;
+  overflow-y: auto;
+}
+
+#logbox {
+  height: 200px;
+  border: 2px solid black;
+  margin-top: 20px;
+  overflow-y: auto;
+}
+
+#videoStreams {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center; /* Center horizontally */
+  align-items: center; /* Center vertically */
+  margin: 20px 0;
+  flex-direction: row;
+}
+
+.video-container {
+  margin: 10px;
+  text-align: center;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center; /* Center horizontally */
+  align-items: center; /* Center vertically */
+  flex-direction: row;
+}
+
+video {
+  max-width: 100%;
+  border: 1px solid #ccc;
+  margin-bottom: 10px;
+}
+
+#selfStream {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center; /* Center horizontally */
+  align-items: space-between; /* Center vertically */
+  margin: 20px 0;
+  flex-direction: column;
+  
+}
+
+#selfStream video {
+  margin-bottom: 10px;
+}
+
+button#webcamToggle,
+button#micToggle,
+button#screenSharing {
+  margin: 10px;
+  padding: 8px 12px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+button#webcamToggle:disabled,
+button#micToggle:disabled,
+button#screenSharing:disabled {
+  background-color: #aaa;
+  cursor: not-allowed;
 }
 

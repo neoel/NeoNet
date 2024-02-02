@@ -76,6 +76,7 @@ function App() {
         const stream = navigator.mediaDevices.getDisplayMedia(constraints);
         resolve(stream)
       }).then((value) => {
+        localScreen.current.srcObject = value;
         let track = value.getVideoTracks()[0]
         track.onended = function (){
           stopScreenShare()
@@ -96,6 +97,7 @@ function App() {
 
  function stopScreenShare(){
   let track = localStream.current.getVideoTracks()[0]
+  localScreen.current.srcObject = null;
   videoConnections.map(call => {
     let sender = call.connection.peerConnection.getSenders().find(function(tracks) {
       return tracks.track.kind === track.kind
@@ -126,12 +128,18 @@ keys()
 
 
   function sendMessage() {
+    var name = userNameInput.current.value;
+
+    if(name == ""){
+      name = "N/A"
+    }
 
     incomingMessages.current.innerHTML += "You: " + messageBox.current.value + "<br>";
     Array.from(dataConnections, ([key, value]) => {
       var publicKey = usersPublicKeys.get(key)
+      console.log(publicKey)
       publicKey = forge.pki.publicKeyFromPem(publicKey)
-      var messageDataStructure = { "message": userNameInput.current.value + ": " + messageBox.current.value }
+      var messageDataStructure = { "message": name + ": " + messageBox.current.value }
       let encrypted = publicKey.encrypt(JSON.stringify(messageDataStructure))
       value.send(encrypted)
       return
@@ -163,9 +171,10 @@ keys()
           console.log("User joined:" + msg.from)
           if (msg.from !== socket.id) {
             connections.set(msg.from, new Peer({
-              host: "146.0.17.99",
-              port: "5000",
-              path: "/p2p",
+              host: "neonet.dev",
+              port: "443",
+              path: "/peerjs/p2p",
+              secure: true,
               debug: 3,
               config: {'iceServers': [
                 { urls: 'stun:neonet.dev:3479' },
@@ -190,12 +199,13 @@ keys()
             console.log("Offer Socket:" + msg.from)
             console.log("Offer ID:" + msg.pid)
             console.log("Public Key: " + msg.publicKey)
-            usersPublicKeys.set(msg.pid, msg.publicKey)
+            usersPublicKeys.set(msg.from, msg.publicKey)
             
             connections.set(msg.from, new Peer({
-              host: "146.0.17.99",
-              port: "5000",
-              path: "/p2p",
+              host: "neonet.dev",
+              port: "443",
+              path: "/peerjs/p2p",
+              secure: true,
               debug: 3,
               config: {'iceServers': [
                 { urls: 'stun:neonet.dev:3479' },
@@ -213,9 +223,58 @@ keys()
 
             })
 
+            peer.on('call', function(call) {
+                
+              setVideoConnections(  [ // with a new array
+              ...videoConnections, // that contains all the old items
+              { id: msg.from, connection: call } // and one new item at the end
+            ])
+
+              call.on('error', function(err) { console.error(err) });
+
+              call.on('close', function(){
+                setCallStreams(
+                  callStreams.filter(stream => stream.id !== msg.from)
+                );
+                setVideoConnections(
+                  videoConnections.filter(vid => vid.id !== msg.id)
+                );
+              })
+              
+              // Answer the call, providing our mediaStream
+              try {
+                const constraints = {
+                    video: true,
+                    audio: true
+                };
+                
+               new Promise((resolve, reject) => {
+                  const stream = navigator.mediaDevices.getUserMedia(constraints);
+                  resolve(stream)
+                }).then((value) => {
+                localStream.current = value
+                console.log('Got MediaStream:', localStream);
+                localWebcam.current.srcObject = localStream.current;
+                
+                call.answer(localStream.current);
+                call.on('stream', function(stream) {
+                  console.log("Stream from other peer: " + stream)
+                  setCallStreams(  [ // with a new array
+              ...callStreams, // that contains all the old items
+              { id: msg.from, videoStream: stream } // and one new item at the end
+            ])
+                  });
+                
+                });
+            } catch (error) {
+                console.error('Error accessing media devices.', error);
+            }
+  
+              });
+
             
             peer.on("connection", (conn) => {
-              dataConnections.set(conn.peer, conn)
+              dataConnections.set(msg.from, conn)
               conn.on("data", (data) => {
                 console.log("Encrypted Data: " + data)
                 let decrypted = clientPrivateKey.decrypt(data)
@@ -223,73 +282,24 @@ keys()
                 incomingMessages.current.innerHTML += decrypted.message + "<br>";
               });
     
-              peer.on('call', function(call) {
-                
-                setVideoConnections(  [ // with a new array
-                ...videoConnections, // that contains all the old items
-                { id: call.peer, connection: call } // and one new item at the end
-              ])
-
-                call.on('error', function(err) { console.error(err) });
-
-                call.on('close', function(){
-                  setCallStreams(
-                    callStreams.filter(stream => stream.id !== call.peer)
-                  );
-                  setVideoConnections(
-                    videoConnections.filter(vid => vid.id !== msg.id)
-                  );
-                })
-                
-                // Answer the call, providing our mediaStream
-                try {
-                  const constraints = {
-                      video: true,
-                      audio: true
-                  };
-                  
-                 new Promise((resolve, reject) => {
-                    const stream = navigator.mediaDevices.getUserMedia(constraints);
-                    resolve(stream)
-                  }).then((value) => {
-                  localStream.current = value
-                  console.log('Got MediaStream:', localStream);
-                  localWebcam.current.srcObject = localStream.current;
-                  
-                  call.answer(localStream.current);
-                  call.on('stream', function(stream) {
-                    console.log("Stream from other peer: " + stream)
-                    setCallStreams(  [ // with a new array
-                ...callStreams, // that contains all the old items
-                { id: call.peer, videoStream: stream } // and one new item at the end
-              ])
-                    });
-                  
-                  });
-              } catch (error) {
-                  console.error('Error accessing media devices.', error);
-              }
-    
-                });
-    
               conn.on("open", (data) => {
                 setUIElementsState(false)
-    
               });
             });
     
           }
         }
+
         function getAnswer(msg) {
           if (msg.to === socket.id) {
             console.log("Offer Socket:" + msg.from)
             console.log("Offer ID:" + msg.pid)
             console.log("Public Key: " + msg.publicKey)
-            usersPublicKeys.set(msg.pid, msg.publicKey)
+            usersPublicKeys.set(msg.from, msg.publicKey)
             var peer = connections.get(msg.from)
             const conn = peer.connect(msg.pid);
             
-            dataConnections.set(conn.peer, conn)
+            dataConnections.set(msg.from, conn)
     
             conn.on("data", (data) => {
               console.log("Encrypted Data: " + data)
@@ -300,11 +310,11 @@ keys()
     
             conn.on("open", (data) => {
               setUIElementsState(false)
-    
+              
             });
 
             conn.on("close", function(){
-              dataConnections.delete(conn.peer)
+              
             })
             
             try {
@@ -323,22 +333,17 @@ keys()
               console.log("Call trigger localStream: " + localStream.current)
               var call = peer.call(msg.pid, localStream.current)
               call.on('close', function(){
-                setCallStreams(
-                  callStreams.filter(stream => stream.id !== call.peer)
-                );
-                setVideoConnections(
-                  videoConnections.filter(vid => vid.id !== msg.id)
-                );
+                
               })
               setVideoConnections(  [ // with a new array
                 ...videoConnections, // that contains all the old items
-                { id: call.peer, connection: call } // and one new item at the end
+                { id: msg.from, connection: call } // and one new item at the end
               ])
               call.on('stream', function(stream) {
                 console.log("Stream from other peer: " + stream)
                 setCallStreams(  [ // with a new array
                 ...callStreams, // that contains all the old items
-                { id: call.peer, videoStream: stream } // and one new item at the end
+                { id: msg.from, videoStream: stream } // and one new item at the end
               ])
                 });
   
@@ -365,7 +370,14 @@ keys()
         function userLeft(msg) {
           console.log("Closed data channel and peerconnection" + msg.id);
           connections.delete(msg.id)
+          dataConnections.delete(msg.id)
           usersPublicKeys.delete(msg.id)
+          setCallStreams(
+            callStreams.filter(stream => stream.id !== msg.id)
+          );
+          setVideoConnections(
+            videoConnections.filter(vid => vid.id !== msg.id)
+          );
           addLog("User " + msg.id +  " left the room.");
           checkUsersonRoom()
         }
@@ -413,9 +425,19 @@ keys()
       </div>
 
       <div id='videoStreams' ref={videoStreams}> 
+
       <div id="selfStream">
+      <div>
+      <h2>Your webcam</h2>
       <video autoPlay={true} playsInline={true} id="localWebcam" ref={localWebcam}></video>
+      </div>
+
+      <div>
+      <h2>Your screen</h2>
       <video  autoPlay={true} playsInline={true} id="localScreen" ref={localScreen}></video>
+      </div>
+      
+      
       <button id="webcamToggle" ref={webcamToggle} onClick={toggleWebcam}>Webcam Toggle</button>
       <button id="micToggle" ref={micToggle} onClick={toggleMicrophone}>Microphone Toggle</button>
       <button id="screenSharing" ref={screenShare} onClick={startScreenShare}>ScreenShare</button>
@@ -423,7 +445,7 @@ keys()
     
         {
           callStreams.map((stream => (
-            <div>
+            <div className='video-container'>
               <video key={stream.id} autoPlay={true} playsInline={true} id={stream.id} ref={(ref) => {
               if (ref) ref.srcObject = stream.videoStream;
             }}></video>
