@@ -17,7 +17,9 @@ server.listen(port, host, () => {
 const io = new Server(server, {
   cors: {
     origin: "http://localhost:3000"
-  }
+  },
+  path: "/signaling/",
+  transports : ['polling', 'websocket']
 });
 
 io.on("connection", (socket) => {
