@@ -232,14 +232,6 @@ keys()
 
               call.on('error', function(err) { console.error(err) });
 
-              call.on('close', function(){
-                setCallStreams(
-                  callStreams.filter(stream => stream.id !== msg.from)
-                );
-                setVideoConnections(
-                  videoConnections.filter(vid => vid.id !== msg.id)
-                );
-              })
               
               // Answer the call, providing our mediaStream
               try {
