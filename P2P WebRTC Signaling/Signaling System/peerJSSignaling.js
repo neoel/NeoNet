@@ -54,7 +54,9 @@ io.on("connection", (socket) => {
       "from": msg.from,
       "to": msg.to,
       "pid": msg.pid,
-      "publicKey": msg.publicKey
+      "publicKey": msg.publicKey,
+      "name" : msg.name,
+      "profilePic" : msg.profilePic
       
     })
   });
@@ -66,7 +68,9 @@ io.on("connection", (socket) => {
       "from": msg.from,
       "to": msg.to,
       "pid": msg.pid,
-      "publicKey": msg.publicKey
+      "publicKey": msg.publicKey,
+      "name" : msg.name,
+      "profilePic" : msg.profilePic
     })
   });
 

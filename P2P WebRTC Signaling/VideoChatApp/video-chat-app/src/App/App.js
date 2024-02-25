@@ -19,6 +19,7 @@ function App() {
   const sendButton = useRef(null);
   const incomingMessages = useRef(null);
   const userNameInput = useRef(null);
+  const profilePicInput = useRef(null);
   const localWebcam = useRef(null);
   const localScreen = useRef(null);
   const videoStreams = useRef(null);
@@ -26,6 +27,7 @@ function App() {
   const webcamToggle = useRef(null);
   const screenShare = useRef(null);
   const [uiElementsState, setUIElementsState] = useState(true);
+  const userInfo = useMemo(() => new Map(), []);
   const [logs, setLogs] = useState([]); // State for logs
   var localStream = useRef(null);
   var { clientPublicKey, clientPrivateKey } = 0;
@@ -128,18 +130,12 @@ keys()
 
 
   function sendMessage() {
-    var name = userNameInput.current.value;
-
-    if(name == ""){
-      name = "N/A"
-    }
-
     incomingMessages.current.innerHTML += "You: " + messageBox.current.value + "<br>";
     Array.from(dataConnections, ([key, value]) => {
       var publicKey = usersPublicKeys.get(key)
       console.log(publicKey)
       publicKey = forge.pki.publicKeyFromPem(publicKey)
-      var messageDataStructure = { "message": name + ": " + messageBox.current.value }
+      var messageDataStructure = { "message": messageBox.current.value, "socketID": socket.id}
       let encrypted = publicKey.encrypt(JSON.stringify(messageDataStructure))
       value.send(encrypted)
       return
@@ -185,7 +181,7 @@ keys()
             let pemKey = forge.pki.publicKeyToPem(clientPublicKey)
             
             peer.on('open', function (id) {
-              socket.emit("send-offer", { "from": socket.id, "to": msg.from, "pid": id, "publicKey": pemKey, "room": searchParams.get("room") })
+              socket.emit("send-offer", { "from": socket.id, "to": msg.from, "pid": id, "publicKey": pemKey, "room": searchParams.get("room"), "name": userNameInput.current.value, "profilePic": profilePicInput.current.value})
               
             });
             
@@ -200,7 +196,7 @@ keys()
             console.log("Offer ID:" + msg.pid)
             console.log("Public Key: " + msg.publicKey)
             usersPublicKeys.set(msg.from, msg.publicKey)
-            
+            userInfo.set(msg.from, {"name": msg.name, "profilePic": msg.profilePic})
             connections.set(msg.from, new Peer({
               host: "neonet.dev",
               port: "443",
@@ -215,7 +211,7 @@ keys()
             var peer = connections.get(msg.from)
             let pemKey = forge.pki.publicKeyToPem(clientPublicKey)
             peer.on('open', function (id) {
-              socket.emit("send-answer", { "from": socket.id, "to": msg.from, "pid": id, "publicKey": pemKey, "room": searchParams.get("room") })
+              socket.emit("send-answer", { "from": socket.id, "to": msg.from, "pid": id, "publicKey": pemKey, "room": searchParams.get("room"), "name": userNameInput.current.value, "profilePic": profilePicInput.current.value})
               
             });
 
@@ -271,7 +267,8 @@ keys()
                 console.log("Encrypted Data: " + data)
                 let decrypted = clientPrivateKey.decrypt(data)
                 decrypted = JSON.parse(decrypted)
-                incomingMessages.current.innerHTML += decrypted.message + "<br>";
+                var userData = userInfo.get(decrypted.socketID)
+                incomingMessages.current.innerHTML += userData.name + " : " + decrypted.message + "<br>";
               });
     
               conn.on("open", (data) => {
@@ -288,16 +285,18 @@ keys()
             console.log("Offer ID:" + msg.pid)
             console.log("Public Key: " + msg.publicKey)
             usersPublicKeys.set(msg.from, msg.publicKey)
+            userInfo.set(msg.from, {"name": msg.name, "profilePic": msg.profilePic})
             var peer = connections.get(msg.from)
             const conn = peer.connect(msg.pid);
             
             dataConnections.set(msg.from, conn)
-    
+
             conn.on("data", (data) => {
               console.log("Encrypted Data: " + data)
               let decrypted = clientPrivateKey.decrypt(data)
               decrypted = JSON.parse(decrypted)
-              incomingMessages.current.innerHTML += decrypted.message + "<br>";
+              var userData = userInfo.get(decrypted.socketID)
+              incomingMessages.current.innerHTML += userData.name + " : " + decrypted.message + "<br>";
             });
     
             conn.on("open", (data) => {
@@ -364,6 +363,7 @@ keys()
           connections.delete(msg.id)
           dataConnections.delete(msg.id)
           usersPublicKeys.delete(msg.id)
+          userInfo.delete(msg.id)
           setCallStreams(
             callStreams.filter(stream => stream.id !== msg.id)
           );
@@ -399,6 +399,8 @@ keys()
       <div id='controls'>
         <label htmlFor="name">Name: </label>
       <input type="text" id="name" ref={userNameInput}></input>
+      <label htmlFor="profilepic">Profile Picture: </label>
+      <input type="text" id="profilepic" ref={profilePicInput}></input>
       <input type="text" id="chattext" disabled={uiElementsState} ref={messageBox} onKeyDown={sendMessageOnEnter}></input>
       <button id="sendButton" disabled={uiElementsState} ref={sendButton} onClick={sendMessage}>Send</button>
       </div>
