@@ -6,6 +6,7 @@ var forge = require("node-forge");
 const socket = io.connect("https://neonet.dev", {
   path: "/signaling/"
 });
+const createDOMPurify = require('dompurify');
 
 
 function App() {
@@ -130,12 +131,13 @@ keys()
 
 
   function sendMessage() {
-    incomingMessages.current.innerHTML += "You: " + messageBox.current.value + "<br>";
+    var sanitizedMessage = createDOMPurify.sanitize(messageBox.current.value)
+    incomingMessages.current.innerHTML += "You: " + sanitizedMessage + "<br>";
     Array.from(dataConnections, ([key, value]) => {
       var publicKey = usersPublicKeys.get(key)
       console.log(publicKey)
       publicKey = forge.pki.publicKeyFromPem(publicKey)
-      var messageDataStructure = { "message": messageBox.current.value, "socketID": socket.id}
+      var messageDataStructure = { "message": sanitizedMessage, "socketID": socket.id}
       let encrypted = publicKey.encrypt(JSON.stringify(messageDataStructure))
       value.send(encrypted)
       return
