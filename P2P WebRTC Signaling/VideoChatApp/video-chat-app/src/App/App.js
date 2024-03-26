@@ -130,7 +130,9 @@ function App() {
 keys()
 
 
-  function sendMessage() {
+  function sendMessage(formdata) {
+    formdata.persist();
+    formdata.preventDefault();
     var sanitizedMessage = createDOMPurify.sanitize(messageBox.current.value)
     incomingMessages.current.innerHTML += "You: " + sanitizedMessage + "<br>";
     Array.from(dataConnections, ([key, value]) => {
@@ -147,12 +149,12 @@ keys()
     messageBox.current.value = "";
   }
 
-  const sendMessageOnEnter = event => {
-    if (event.key === 'Enter') {
-      sendMessage();
-    }
+  // const sendMessageOnEnter = event => {
+  //   if (event.key === 'Enter') {
+  //     sendMessage();
+  //   }
 
-  }
+  // }
 
  
     useEffect(() => {
@@ -160,6 +162,7 @@ keys()
         const urlSearchString = window.location.search;
   
         const searchParams = new URLSearchParams(urlSearchString);
+        
         function connect() {
           console.log(socket.id);
           socket.emit("member-joined", { "room": searchParams.get("room") })
@@ -398,14 +401,14 @@ keys()
   return (
     <>
       <h1>WebRTC Chat Sandbox</h1>
-      <div id='controls'>
+      <form id='controls' action={sendMessage}>
         <label htmlFor="name">Name: </label>
       <input type="text" id="name" ref={userNameInput}></input>
       <label htmlFor="profilepic">Profile Picture: </label>
       <input type="text" id="profilepic" ref={profilePicInput}></input>
-      <input type="text" id="chattext" disabled={uiElementsState} ref={messageBox} onKeyDown={sendMessageOnEnter}></input>
+      <input type="text" id="chattext" disabled={uiElementsState} ref={messageBox} /*onKeyDown={sendMessageOnEnter}*/></input>
       <button id="sendButton" disabled={uiElementsState} ref={sendButton} onClick={sendMessage}>Send</button>
-      </div>
+      </form>
       
       
 
