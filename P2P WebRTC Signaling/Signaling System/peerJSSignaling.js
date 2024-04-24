@@ -25,7 +25,7 @@ const io = new Server(server, {
 io.on("connection", (socket) => {
   socket.on('member-joined', (msg) => {
     
-    if (msg.room == undefined || msg.room == "null"){
+    if (msg.room == undefined || msg.room == "null" || String(msg.room).length > 4){
       io.to(socket.id).emit("no-room")
     }else{
       socket.join(msg.room);
