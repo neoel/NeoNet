@@ -130,18 +130,32 @@ function App() {
 keys()
 
 
+
+
   function sendMessage(formdata) {
     formdata.persist();
     formdata.preventDefault();
+    
     var sanitizedMessage = createDOMPurify.sanitize(messageBox.current.value)
     incomingMessages.current.innerHTML += "You: " + sanitizedMessage + "<br>";
+   
     Array.from(dataConnections, ([key, value]) => {
       var publicKey = usersPublicKeys.get(key)
       console.log(publicKey)
       publicKey = forge.pki.publicKeyFromPem(publicKey)
+      var kdf1 = new forge.kem.kdf1(forge.md.sha1.create());
+      var kem = forge.kem.rsa.create(kdf1);
+      var result = kem.encrypt(publicKey, 32);
+      var iv = forge.random.getBytesSync(32);
       var messageDataStructure = { "message": sanitizedMessage, "socketID": socket.id}
-      let encrypted = publicKey.encrypt(JSON.stringify(messageDataStructure))
-      value.send(encrypted)
+      var input = forge.util.encodeUtf8(JSON.stringify(messageDataStructure))
+      var cipher = forge.cipher.createCipher('AES-GCM', result.key);
+      cipher.start({iv: iv});
+      cipher.update(forge.util.createBuffer(input));
+      cipher.finish();
+      var encrypted = cipher.output.getBytes();
+      var tag = cipher.mode.tag.getBytes();
+      value.send({"encryptedContent": encrypted, "tag": tag, "iv": iv, "encapsulation": result.encapsulation})
       return
     }
 
@@ -265,15 +279,27 @@ keys()
   
               });
 
-            
+            // {"encryptedContent": encrypted, "tag": tag, "iv": iv, "encapsulation": result.encapsulation}
             peer.on("connection", (conn) => {
               dataConnections.set(msg.from, conn)
               conn.on("data", (data) => {
-                console.log("Encrypted Data: " + data)
-                let decrypted = clientPrivateKey.decrypt(data)
-                decrypted = JSON.parse(decrypted)
+                console.log("Encrypted Data: " + data.encryptedContent)
+                var kdf1 = new forge.kem.kdf1(forge.md.sha1.create());
+                var kem = forge.kem.rsa.create(kdf1);
+                var key = kem.decrypt(clientPrivateKey, data.encapsulation, 32);
+                var decipher = forge.cipher.createDecipher('AES-GCM', key);
+                decipher.start({iv: data.iv, tag: data.tag});
+                decipher.update(forge.util.createBuffer(data.encryptedContent));
+                var pass = decipher.finish();
+                // pass is false if there was a failure (eg: authentication tag didn't match)
+                if(pass) {
+                
+                let decrypted = JSON.parse(forge.util.decodeUtf8(decipher.output.getBytes()))
+                console.log("Dekriptume: ", decrypted)
                 var userData = userInfo.get(decrypted.socketID)
                 incomingMessages.current.innerHTML += userData.name + " : " + decrypted.message + "<br>";
+                }
+                
               });
     
               conn.on("open", (data) => {
@@ -297,11 +323,22 @@ keys()
             dataConnections.set(msg.from, conn)
 
             conn.on("data", (data) => {
-              console.log("Encrypted Data: " + data)
-              let decrypted = clientPrivateKey.decrypt(data)
-              decrypted = JSON.parse(decrypted)
-              var userData = userInfo.get(decrypted.socketID)
-              incomingMessages.current.innerHTML += userData.name + " : " + decrypted.message + "<br>";
+              console.log("Encrypted Data: " + data.encryptedContent)
+                var kdf1 = new forge.kem.kdf1(forge.md.sha1.create());
+                var kem = forge.kem.rsa.create(kdf1);
+                var key = kem.decrypt(clientPrivateKey, data.encapsulation, 32);
+                var decipher = forge.cipher.createDecipher('AES-GCM', key);
+                decipher.start({iv: data.iv, tag: data.tag});
+                decipher.update(forge.util.createBuffer(data.encryptedContent));
+                var pass = decipher.finish();
+                // pass is false if there was a failure (eg: authentication tag didn't match)
+                if(pass) {
+            
+                  let decrypted = JSON.parse(forge.util.decodeUtf8(decipher.output.getBytes()))
+                  console.log("Dekriptume: ", forge.util.decodeUtf8(decrypted))
+                  var userData = userInfo.get(decrypted.socketID)
+                  incomingMessages.current.innerHTML += userData.name + " : " + decrypted.message + "<br>";
+                }
             });
     
             conn.on("open", (data) => {
