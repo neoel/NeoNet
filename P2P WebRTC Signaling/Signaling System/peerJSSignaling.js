@@ -75,6 +75,14 @@ io.on("connection", (socket) => {
     })
   });
 
+  socket.on('start-call', (msg) => {
+    console.log("Call initiation");
+    io.to(msg.room).emit("initiate-call", {
+      "from": msg.from,
+      "to": msg.to
+    })
+  });
+
   socket.on("disconnecting", () => {
   const roomIterator = socket.rooms.values();
 for (const entry of roomIterator) {
